@@ -1,14 +1,14 @@
 --mode train
---model_name newcrfs_nyu
+--model_name newcrfs_nyu_0723
 --encoder large07
 --pretrain ./model_zoo/swin_transformer/swin_large_patch4_window7_224_22k.pth
 --dataset nyu
 --data_path /DATA/i2r/guzw/dataset/Monocular_Depth/nyu_depth_v2/sync/
 --gt_path /DATA/i2r/guzw/dataset/Monocular_Depth/nyu_depth_v2/sync/
 --filenames_file data_splits/nyudepthv2_train_files_with_gt_dense.txt
---batch_size 2
+--batch_size 16
 --num_epochs 50
---learning_rate 2e-5
+--learning_rate 1e-5
 --weight_decay 1e-2
 --adam_eps 1e-3
 --num_threads 1
@@ -30,3 +30,4 @@
 --min_depth_eval 1e-3
 --max_depth_eval 10
 --eigen_crop
+
