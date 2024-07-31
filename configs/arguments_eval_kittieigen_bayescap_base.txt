@@ -1,0 +1,14 @@
+--model_name newcrfs_kittieigen
+--encoder large07
+--dataset kitti
+--input_height 352
+--input_width 1216
+--max_depth 80
+--do_kb_crop
+
+--data_path_eval /DATA/i2r/guzw/dataset/kitti_depth/
+--gt_path_eval /DATA/i2r/guzw/dataset/kitti_depth/
+--filenames_file_eval data_splits/kitti_official_valid.txt
+--min_depth_eval 1e-3
+--max_depth_eval 80
+--garg_crop

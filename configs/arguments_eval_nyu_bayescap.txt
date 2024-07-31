@@ -1,0 +1,15 @@
+--model_name newscrf_nyu
+--encoder large07
+--dataset nyu
+--input_height 480
+--input_width 640
+--max_depth 10
+
+--data_path_eval /DATA/i2r/guzw/dataset/Monocular_Depth/nyu_depth_v2/official_splits/test/
+--gt_path_eval /DATA/i2r/guzw/dataset/Monocular_Depth/nyu_depth_v2/official_splits/test/
+--filenames_file_eval data_splits/nyudepthv2_test_files_with_gt.txt
+--min_depth_eval 1e-3
+--max_depth_eval 10
+--eigen_crop
+
+--checkpoint_path /DATA/i2r/guzw/workspace/confidence/Uncertainty/NeWCRFs_UNC/models/newcrfs_nyu_0731/model-epoch0-iter_3999
