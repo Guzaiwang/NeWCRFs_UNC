@@ -7,6 +7,7 @@ import numpy as np
 from PIL import Image
 import os
 import random
+import cv2
 
 from utils import DistributedSamplerNoEvenlyDivisible
 
@@ -84,14 +85,11 @@ class DataLoadPreprocess(Dataset):
         if self.mode == 'train':
             if self.args.dataset == 'kitti':
                 rgb_file = sample_path.split()[0]
-                # depth_file = os.path.join(sample_path.split()[0].split('/')[0], sample_path.split()[1])
-                depth_file = sample_path.split()[1]
+                depth_file = rgb_file.replace('/image_02/data/', '/proj_depth/groundtruth/image_02/')
+                depth_file = depth_file[11:] 
                 if self.args.use_right is True and random.random() > 0.5:
                     rgb_file.replace('image_02', 'image_03')
                     depth_file.replace('image_02', 'image_03')
-            else:
-                rgb_file = sample_path.split()[0]
-                depth_file = sample_path.split()[1]
 
             image_path = os.path.join(self.args.data_path, rgb_file)
             depth_path = os.path.join(self.args.gt_path, depth_file)
@@ -136,7 +134,9 @@ class DataLoadPreprocess(Dataset):
             if image.shape[0] != self.args.input_height or image.shape[1] != self.args.input_width:
                 image, depth_gt = self.random_crop(image, depth_gt, self.args.input_height, self.args.input_width)
             image, depth_gt = self.train_preprocess(image, depth_gt)
-            sample = {'image': image, 'depth': depth_gt, 'focal': focal}
+            image_denomalized = image * 255.
+            aux_canny = auto_canny(image_denomalized.astype(np.uint8)) / 256.
+            sample = {'image': image, 'depth': depth_gt, 'focal': focal, 'aux_gt': aux_canny}
         
         else:
             if self.mode == 'online_eval':
@@ -144,17 +144,19 @@ class DataLoadPreprocess(Dataset):
             else:
                 data_path = self.args.data_path
 
-            image_path = os.path.join(data_path, "./" + sample_path.split()[0])
+            image_path = os.path.join(data_path, 'data_'+sample_path.split()[0])
+            # image_path = os.path.join(data_path, sample_path.split()[0])
             image = np.asarray(Image.open(image_path), dtype=np.float32) / 255.0
 
             if self.mode == 'online_eval':
                 gt_path = self.args.gt_path_eval
-                depth_path = os.path.join(gt_path, "./" + sample_path.split()[1])
+
                 if self.args.dataset == 'kitti':
-                    # depth_path = os.path.join(gt_path, sample_path.split()[0].split('/')[0], sample_path.split()[1])
-                    depth_path = os.path.join(gt_path, sample_path.split()[1])
+                    depth_path = image_path.replace('sync_image', 'sync_groundtruth_depth').replace('/image/', '/groundtruth_depth/')
                 has_valid_depth = False
                 try:
+                    # print(depth_path)
+                    # assert os.path.exists(depth_path)
                     depth_gt = Image.open(depth_path)
                     has_valid_depth = True
                 except IOError:
@@ -258,7 +260,8 @@ class ToTensor(object):
         depth = sample['depth']
         if self.mode == 'train':
             depth = self.to_tensor(depth)
-            return {'image': image, 'depth': depth, 'focal': focal}
+            aux_gt = sample['aux_gt']
+            return {'image': image, 'depth': depth, 'focal': focal, 'aux_gt': aux_gt}
         else:
             has_valid_depth = sample['has_valid_depth']
             return {'image': image, 'depth': depth, 'focal': focal, 'has_valid_depth': has_valid_depth}
@@ -293,3 +296,13 @@ class ToTensor(object):
             return img.float()
         else:
             return img
+
+
+def auto_canny(image, sigma=0.33):
+    # compute the median of the single channel pixel intensities
+    v = np.median(image)
+    # apply automatic Canny edge detection using the computed median
+    lower = int(max(0, (1.0 - sigma) * v))
+    upper = int(min(255, (1.0 + sigma) * v))
+    edged = cv2.Canny(image, lower, upper)
+    return edged

@@ -16,7 +16,7 @@ from tensorboardX import SummaryWriter
 
 from utils import post_process_depth, flip_lr, silog_loss, compute_errors, eval_metrics, \
                        block_print, enable_print, normalize_result, inv_normalize, convert_arg_line_to_args
-from networks.NewCRFDepthBayesCap import NewCRFDepthBayesCap as NewCRFDepth
+from networks.NewCRFDepthBayesCap import NewCRFDepthBayesCapKITTI as NewCRFDepth
 
 
 parser = argparse.ArgumentParser(description='NeWCRFs PyTorch implementation.', fromfile_prefix_chars='@')
@@ -89,7 +89,7 @@ else:
     args = parser.parse_args()
 
 if args.dataset == 'kitti' or args.dataset == 'nyu':
-    from dataloaders.dataloader import NewDataLoader
+    from dataloaders.dataloader_kitti import NewDataLoader
 elif args.dataset == 'kittipred':
     from dataloaders.dataloader_kittipred import NewDataLoader
 
@@ -390,8 +390,8 @@ def main_worker(gpu, ngpus_per_node, args):
                 mask = depth_gt > 0.1
             else:
                 mask = depth_gt > 1.0
-
-            depth_gt = depth_gt / 10.
+            
+            depth_gt = depth_gt / 80.
 
             # loss = silog_criterion(xSRC_mu, xSRC_alpha, xSRC_beta, xSR, xHR, T1=T1,T2=T2)
             # print("depth_est max min", depth_est.max(), depth_est.min())

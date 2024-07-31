@@ -8,7 +8,7 @@ from tqdm import tqdm
 from scipy.stats import pearsonr 
 
 from utils import post_process_depth, flip_lr, compute_errors
-from networks.NewCRFDepthBayesCap import NewCRFDepthBayesCap as NewCRFDepth
+from networks.NewCRFDepthBayesCap import NewCRFDepthBayesCapKITTI as NewCRFDepth
 
 
 def convert_arg_line_to_args(arg_line):
@@ -54,7 +54,7 @@ else:
     args = parser.parse_args()
 
 if args.dataset == 'kitti' or args.dataset == 'nyu':
-    from dataloaders.dataloader import NewDataLoader
+    from dataloaders.dataloader_kitti import NewDataLoader
 elif args.dataset == 'kittipred':
     from dataloaders.dataloader_kittipred import NewDataLoader
 
@@ -62,7 +62,9 @@ elif args.dataset == 'kittipred':
 def eval(model, dataloader_eval, post_process=False):
     eval_measures = torch.zeros(10).cuda()
     CC_pearson = []
-    for _, eval_sample_batched in enumerate(tqdm(dataloader_eval.data)):
+    for idx, eval_sample_batched in enumerate(tqdm(dataloader_eval.data)):
+        # if idx == 20:
+        #     break
         with torch.no_grad():
             image = torch.autograd.Variable(eval_sample_batched['image'].cuda())
             gt_depth = eval_sample_batched['depth']
@@ -78,16 +80,17 @@ def eval(model, dataloader_eval, post_process=False):
             # print("b_map size is", b_map.size())
 
 
-            pred_depth = pred_depth * 10.
+            pred_depth = pred_depth * 80.
             if post_process:
                 image_flipped = flip_lr(image)
                 pred_depth_flipped, uncertainty_maps_flips = model(image_flipped)
-                pred_depth_flipped = pred_depth_flipped * 10
+                pred_depth_flipped = pred_depth_flipped * 80.
                 pred_depth = post_process_depth(pred_depth, pred_depth_flipped)
 
             pred_depth = pred_depth.cpu().numpy().squeeze()
             gt_depth = gt_depth.cpu().numpy().squeeze()
-
+            # print("gt_depth max ", np.max(gt_depth), "min ", np.min(gt_depth))
+            # print("gt_depth max ", np.max(pred_depth), "min ", np.min(pred_depth))
         if args.do_kb_crop:
             height, width = gt_depth.shape
             top_margin = int(height - 352)
@@ -104,7 +107,7 @@ def eval(model, dataloader_eval, post_process=False):
         valid_mask = np.logical_and(gt_depth > args.min_depth_eval, gt_depth < args.max_depth_eval)
 
         if args.garg_crop or args.eigen_crop:
-            gt_height, gt_width = gt_depth.shape
+            gt_height, gt_width= gt_depth.shape
             eval_mask = np.zeros(valid_mask.shape)
 
             if args.garg_crop:
@@ -123,7 +126,7 @@ def eval(model, dataloader_eval, post_process=False):
 
         # print("a_map max, min", a_map.max(), a_map.min())
         valid_mask = valid_mask.squeeze().squeeze()
-        a_map[a_map<1] = 1
+        a_map[a_map<1] = 1 
         a_map = 1/(a_map + 1e-5)
         print("a_map max value, min value,", a_map.max(), a_map.min())
         print("b_map max value, min value,", b_map.max(), b_map.min())
@@ -132,11 +135,10 @@ def eval(model, dataloader_eval, post_process=False):
         u_map = u_map[valid_mask]
         print("u_map max value, min value,", np.max(u_map), np.min(u_map))
         conf_numpy = u_map
-        conf_numpy[conf_numpy==np.inf] = np.min(conf_numpy)
-        conf_numpy[conf_numpy==np.nan] = np.max(conf_numpy)
+        conf_numpy[conf_numpy==np.inf] = 0
+        conf_numpy[conf_numpy==np.nan] = 80
         # conf_numpy = (conf_numpy - np.mean(conf_numpy)) / np.std(conf_numpy)
         # conf_numpy = (conf_numpy - np.min(conf_numpy)) / (np.max(conf_numpy) - np.min(conf_numpy))
-        u_map = conf_numpy
         u_map = conf_numpy
         # u_map = (u_map - np.min(u_map)) / (np.max(u_map) - np.min(u_map))
         diff_abs_coff = np.abs(gt_depth[valid_mask] - pred_depth[valid_mask])
@@ -151,7 +153,9 @@ def eval(model, dataloader_eval, post_process=False):
             CC_pearson.append(pearsonr_coff)
         except ValueError as e:
             continue
-    
+        # pearsonr_coff, _ = 0, 0
+        # print("u_map max is, min is", np.max(u_map), np.min(u_map), np.mean(u_map))
+
 
     eval_measures_cpu = eval_measures.cpu()
     cnt = eval_measures_cpu[9].item()

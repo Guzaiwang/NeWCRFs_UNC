@@ -12,4 +12,4 @@
 --max_depth_eval 10
 --eigen_crop
 
---checkpoint_path /DATA/i2r/guzw/workspace/confidence/Uncertainty/NeWCRFs_UNC/models/newcrfs_nyu_0723/model-epoch2-iter_5999
+--checkpoint_path /DATA/i2r/guzw/workspace/confidence/Uncertainty/NeWCRFs_UNC/models/newcrfs_nyu_0731/model-epoch0-iter_3999

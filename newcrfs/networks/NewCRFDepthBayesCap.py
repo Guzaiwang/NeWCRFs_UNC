@@ -40,6 +40,38 @@ class NewCRFDepthBayesCap(nn.Module):
         return normalized_depth, uncertainty
 
 
+class NewCRFDepthBayesCapKITTI(nn.Module):
+    '''
+    Depth network based on NewCRFs and BayesCap uncertainty estimation
+    '''
+    def __init__(self, version=None, inv_depth=False, pretrained=None, 
+                    frozen_stages=-1, min_depth=0.1, max_depth=100.0, **kwargs):
+        super().__init__()
+        self.newcrf = NewCRFDepth(version=version, inv_depth=inv_depth, pretrained=pretrained, 
+                    frozen_stages=frozen_stages, min_depth=min_depth, max_depth=max_depth, **kwargs)
+        newcrf_ckpt = torch.load('/DATA/i2r/guzw/workspace/confidence/Uncertainty/NeWCRFs_UNC/model_zoo/model_kittieigen.ckpt', map_location='cpu')
+        new_state_dict = {}
+        for k, v in newcrf_ckpt['model'].items():
+            if k.startswith('module.'):
+                new_state_dict[k[7:]] = v  # remove 'module.' prefix
+            else:
+                new_state_dict[k] = v
+        print("loaded newcrf_ckpt")
+        self.newcrf.load_state_dict(new_state_dict)
+        self.bayescap = BayesCap(in_channels=1, out_channels=1)
+        # Freeze the parameters of self.newcrf
+        for param in self.newcrf.parameters():
+            param.requires_grad = False
+
+    def forward(self, x):
+        with torch.no_grad():
+            depth = self.newcrf(x)
+        normalized_depth = depth / 80.
+        uncertainty = self.bayescap(normalized_depth.clone())
+        return normalized_depth, uncertainty
+
+
+
 class NewCRFDepth(nn.Module):
     """
     Depth network based on neural window FC-CRFs architecture.
